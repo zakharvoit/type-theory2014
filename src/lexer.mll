@@ -12,4 +12,7 @@ rule token = parse
              | ')'              { TClosePar }
              | '.'              { TDot }
              | '\\'             { TLambda }
+             | ":="             { TAssign }
+             | '['              { TOpenBracket }
+             | ']'              { TCloseBracket }
              | eof              { TEof }

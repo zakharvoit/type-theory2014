@@ -20,3 +20,11 @@ let freevar e =
     | App (a, b)    -> begin freevar' a; freevar' b; end
     | Lambda (s, a) -> begin H.add bound s (); freevar' a; H.remove bound s; end
   in freevar' e; List.sort compare !ans
+
+
+let rec substitute l a e = match l with
+  | Var s         when s = a -> e
+  | Lambda (s, b) when s = a -> Lambda (s, b)
+  | Lambda (s, b)            -> Lambda (s, substitute b a e)
+  | App (b, c)               -> App (substitute b a e, substitute c a e)
+  | o                        -> o

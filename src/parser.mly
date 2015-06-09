@@ -4,9 +4,16 @@ module L = Lambda
 
 %token <string> TVar
 %token TOpenPar TClosePar TLambda TDot TEof
+%token TOpenBracket TCloseBracket TAssign
 %start only_expr
+%start expr_with_assign
 %type <Lambda.expr> only_expr
+%type <Lambda.expr * string * Lambda.expr> expr_with_assign
 %%
+
+expr_with_assign: expr TOpenBracket TVar TAssign expr TCloseBracket
+                      { ($1, $3, $5) }
+                ;
 
 only_expr: expr TEof { $1 }
       ;
