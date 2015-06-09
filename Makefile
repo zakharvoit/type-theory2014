@@ -1,7 +1,7 @@
 # This makefile uses ocamlbuild to build all executables
 
 SRC_DIR = src
-EXECUTABLES = task1
+EXECUTABLES = task1 task2
 NATIVES = $(EXECUTABLES:%=$(SRC_DIR)/%.native)
 INCLUDE_DIRS = src
 GENERATE_TASKS = $(TEST_TASKS:%.test=%.generate)
