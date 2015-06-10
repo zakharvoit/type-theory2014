@@ -1,9 +1,8 @@
 open Lambda
 open Util
+open Option
 
 let _ = let l = read_lambda stdin in
-        let d = to_de_bruijn l in
-        let l' = from_de_brujin d in
-        print_endline (string_of_expr l);
-        print_endline (string_of_de_brujin d);
-        print_endline (string_of_expr l')
+        match to_normal_form l with
+        | Some e -> print_endline (string_of_expr e)
+        | None   -> print_endline "Нет нормальной формы"

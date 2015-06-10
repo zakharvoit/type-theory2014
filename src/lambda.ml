@@ -1,4 +1,5 @@
 module H = Hashtbl
+open Option
 
 type expr = Lambda of string * expr
           | App of expr * expr
@@ -8,17 +9,16 @@ type de_bruijn = DLambda of de_bruijn
                | DApp of de_bruijn * de_bruijn
                | DVar of int
 
-
 let rec string_of_expr = function
   | Var s         -> s
   | App (a, b)    -> "(" ^ string_of_expr a ^ " " ^ string_of_expr b ^ ")"
   | Lambda (s, a) -> "(\\" ^ s ^ "." ^ string_of_expr a ^ ")"
 
-let rec string_of_de_brujin = function
+let rec string_of_de_bruijn = function
   | DVar x      -> string_of_int x
-  | DApp (a, b) -> "(" ^ string_of_de_brujin a ^ " "
-                  ^ string_of_de_brujin b ^ ")";
-  | DLambda a   -> "(\\" ^ string_of_de_brujin a ^ ")"
+  | DApp (a, b) -> "(" ^ string_of_de_bruijn a ^ " "
+                  ^ string_of_de_bruijn b ^ ")";
+  | DLambda a   -> "(\\" ^ string_of_de_bruijn a ^ ")"
 
 let freevar e =
   let bound = H.create 4 in
@@ -54,7 +54,22 @@ let get_next_name idx =
       | x -> Char.chr (Char.code 'a' + x mod 26) :: generate (x / 26)
     in Str.of_list (generate idx)
 
-let from_de_brujin e =
+(* Add constant to all free variables *)
+let free_add d e =
+  let bound = H.create 4 in
+  let rec add depth = function
+    | DVar a when not (H.mem bound (depth - a))
+                  -> DVar (a + d)
+    | DVar a      -> DVar a
+    | DApp (a, b) -> DApp (add depth a, add depth b)
+    | DLambda e   -> begin H.add bound (depth + 1) ();
+                           let r = add (depth + 1) e in
+                           H.remove bound (depth + 1);
+                           DLambda r
+                     end
+  in add 0 e
+
+let from_de_bruijn e =
   let name = H.create 4 in
   let nid = ref 0 in
   let gen_name idx = if H.mem name idx
@@ -78,9 +93,43 @@ let rec in_normal_form_db = function
   | DLambda e           -> in_normal_form_db e
   | _                   -> true
 
-let substitute_db e i b = match e with
-  | Var x when x = i -> b
-  | _ -> failwith "Stub"
+let substitute_db e i b =
+  let rec subst i depth = function
+    | DVar x when x = i -> free_add depth b
+    | DVar a            -> DVar a
+    | DLambda e         -> DLambda (subst (i + 1) (depth + 1) e)
+    | DApp (p, q)       -> DApp (subst i depth p, subst i depth q)
+  in let r = subst i 1 e in free_add (-1) r
+
+let rec b_reduction = function
+  | DApp (DLambda a, b) -> (true, substitute_db a 0 b)
+  | DApp (a, b)         -> let (f, e) = b_reduction a in
+                           if f
+                           then (true, DApp (e, b))
+                           else let (f, e) = b_reduction b in
+                                if f
+                                then (true, DApp (a, e))
+                                else (false, DApp (a, b))
+  | a                   -> (false, a)
+
+let to_normal_form_db e =
+  let used = H.create 4 in
+
+  let rec convert e = if H.mem used e
+                  then None
+                  else let (f, e') = b_reduction e in
+                       if f
+                       then begin H.add used e ();
+                                  convert e';
+                            end
+                       else Some e'
+  in convert e
+
+let to_normal_form e =
+  let d = to_de_bruijn e in
+  let n = to_normal_form_db d in
+  let r = map from_de_bruijn n in
+  r
 
 let rec substitute l a e = match l with
   | Var s         when s = a -> e
