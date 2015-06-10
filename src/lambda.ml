@@ -153,9 +153,23 @@ let to_normal_form e =
   let r = map from_de_bruijn n in
   r
 
-let rec substitute l a e = match l with
-  | Var s         when s = a -> e
-  | Lambda (s, b) when s = a -> Lambda (s, b)
-  | Lambda (s, b)            -> Lambda (s, substitute b a e)
-  | App (b, c)               -> App (substitute b a e, substitute c a e)
-  | o                        -> o
+exception Not_free
+let substitute l a e =
+  let fv = freevar e in
+  let bound = H.create 4 in
+  let rec subst = function
+    | Var s         when s = a -> begin
+        if List.exists (H.mem bound) fv
+        then raise Not_free
+        else e
+      end
+    | Lambda (s, b) when s = a -> Lambda (s, b)
+    | Lambda (s, b)            -> begin
+        H.add bound s ();
+        let r = Lambda (s, subst b) in
+        H.remove bound s;
+        r
+      end
+    | App (b, c)               -> App (subst b, subst c)
+    | o                        -> o
+  in subst l
