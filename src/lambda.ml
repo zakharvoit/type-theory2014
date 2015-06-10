@@ -133,18 +133,14 @@ let rec b_reduction = function
   and b_reduce e = let (_, r) = b_reduction e in r
 
 let to_normal_form_db e =
-  (* let used = H.create 4 in *)
-
-  let rec convert e = (* if H.mem used e *)
-                  (* then None *)
-                  (* else *) let (f, e') = b_reduction e in
-                       if f
-                       then begin (* H.add used e (); *)
-                                  convert e';
-                            end
-                       else if in_normal_form_db e'
-                       then Some e'
-                       else failwith "ASD"
+  let rec convert e = let (f, e') = b_reduction e in
+                      if f
+                      then begin (* H.add used e (); *)
+                          convert e';
+                        end
+                      else if in_normal_form_db e'
+                      then Some e'
+                      else failwith "ASD"
   in convert e
 
 let to_normal_form e =
