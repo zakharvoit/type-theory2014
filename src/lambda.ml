@@ -1,6 +1,8 @@
 module H = Hashtbl
 open Option
 
+let (|>) f g x = f (g x)
+
 type expr = Lambda of string * expr
           | App of expr * expr
           | Var of string
@@ -8,6 +10,13 @@ type expr = Lambda of string * expr
 type de_bruijn = DLambda of de_bruijn
                | DApp of de_bruijn * de_bruijn
                | DVar of int
+               | DLazy of (unit -> de_bruijn)
+
+let make_lazy f e =
+  let r = ref None in
+  fun _ -> match !r with
+           | None -> let x = f e in r := Some x; x
+           | Some re -> re
 
 let rec string_of_expr = function
   | Var s         -> s
@@ -19,6 +28,7 @@ let rec string_of_de_bruijn = function
   | DApp (a, b) -> "(" ^ string_of_de_bruijn a ^ " "
                   ^ string_of_de_bruijn b ^ ")";
   | DLambda a   -> "(\\" ^ string_of_de_bruijn a ^ ")"
+  | DLazy f     -> string_of_de_bruijn (f ())
 
 let freevar e =
   let bound = H.create 4 in
@@ -67,6 +77,7 @@ let free_add d e =
                            H.remove bound (depth + 1);
                            DLambda r
                      end
+    | DLazy f     -> DLazy (add depth |> f)
   in add 0 e
 
 let from_de_bruijn e =
@@ -85,12 +96,14 @@ let from_de_bruijn e =
                      Var name
     | DApp (a, b)  -> App (convert d a, convert d b)
     | DLambda e    -> Lambda (gen_name (d + 1), convert (d + 1) e)
+    | DLazy f      -> convert d (f ())
   in convert 0 e
 
 let rec in_normal_form_db = function
   | DApp (DLambda _, _) -> false
   | DApp (a, b)         -> in_normal_form_db a && in_normal_form_db b
   | DLambda e           -> in_normal_form_db e
+  | DLazy f             -> in_normal_form_db (f ())
   | _                   -> true
 
 let substitute_db e i b =
@@ -99,10 +112,11 @@ let substitute_db e i b =
     | DVar a            -> DVar a
     | DLambda e         -> DLambda (subst (i + 1) (depth + 1) e)
     | DApp (p, q)       -> DApp (subst i depth p, subst i depth q)
+    | DLazy f           -> DLazy ((subst i depth) |> f)
   in let r = subst i 1 e in free_add (-1) r
 
 let rec b_reduction = function
-  | DApp (DLambda a, b) -> (true, substitute_db a 0 b)
+  | DApp (DLambda a, b) -> (true, substitute_db a 0 (b_reduce b))
   | DApp (a, b)         -> let (f, e) = b_reduction a in
                            if f
                            then (true, DApp (e, b))
@@ -110,19 +124,27 @@ let rec b_reduction = function
                                 if f
                                 then (true, DApp (a, e))
                                 else (false, DApp (a, b))
+  | DLambda a           -> let (f, e) = b_reduction a in
+                           if f
+                           then (true, DLambda e)
+                           else (false, DLambda a)
+  | DLazy f             -> b_reduction (f ())
   | a                   -> (false, a)
+  and b_reduce e = let (_, r) = b_reduction e in r
 
 let to_normal_form_db e =
-  let used = H.create 4 in
+  (* let used = H.create 4 in *)
 
-  let rec convert e = if H.mem used e
-                  then None
-                  else let (f, e') = b_reduction e in
+  let rec convert e = (* if H.mem used e *)
+                  (* then None *)
+                  (* else *) let (f, e') = b_reduction e in
                        if f
-                       then begin H.add used e ();
+                       then begin (* H.add used e (); *)
                                   convert e';
                             end
-                       else Some e'
+                       else if in_normal_form_db e'
+                       then Some e'
+                       else failwith "ASD"
   in convert e
 
 let to_normal_form e =
