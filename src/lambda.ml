@@ -1,5 +1,4 @@
 module H = Hashtbl
-open Option
 
 let (|>) f g x = f (g x)
 
@@ -11,6 +10,10 @@ type de_bruijn = DLambda of de_bruijn
                | DApp of de_bruijn * de_bruijn
                | DVar of int
                | DLazy of (unit -> de_bruijn)
+
+let map f = function
+  | Some x -> Some (f x)
+  | None   -> None
 
 let make_lazy f e =
   let r = ref None in

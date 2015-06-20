@@ -1,5 +1,5 @@
 {
-  open Parser
+  open Lambda_parser
 }
 
 let whitespace = [' ' '\t' '\r' '\n']

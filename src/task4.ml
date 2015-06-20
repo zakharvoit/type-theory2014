@@ -1,6 +1,5 @@
 open Lambda
 open Util
-open Option
 
 let _ = let l = read_lambda stdin in
         match to_normal_form l with
