@@ -2,7 +2,7 @@
   open Parser
 }
 
-let whitespace = [' ' '\t' '\r' '\n']
+let whitespace = [' ' '\t' '\r']+
 let function   = ['a'-'h']['a'-'z' '0'-'9']*
 let variable   = ['i'-'z']['a'-'z' '0'-'9']*
 
@@ -14,4 +14,5 @@ rule token = parse
              | ')'              { TClosePar }
 	     | ','              { TComma }
              | '='              { TEqual }
-             | eof              { TEof }
+             | eof              { raise End_of_file }
+	     | '\n'             { TEoln }

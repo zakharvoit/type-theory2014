@@ -3,7 +3,7 @@ module T = Term
 %}
 
 %token <string> TVar TFunc
-%token TOpenPar TClosePar TComma TEof TEqual
+%token TOpenPar TClosePar TComma TEqual TEoln
 %start equation
 %type <Term.term * Term.term> equation
 %%
