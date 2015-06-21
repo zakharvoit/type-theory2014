@@ -19,7 +19,7 @@ let print_typeeq p =
 
 let rec apply_subst s = function
   | T.Var x       -> begin
-     try List.assoc (T.Var x) s
+     try apply_subst s (List.assoc (T.Var x) s)
      with Not_found -> T.Var x
     end
   | T.Func (f, a) -> T.Func (f, List.map (apply_subst s) a)
